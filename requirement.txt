@@ -1,0 +1,10 @@
+anyio
+httpx
+python-socks
+httpx-socks
+aiofiles
+cfcrawler
+ua-generator
+fake-useragent
+asynctinydb
+colorama
