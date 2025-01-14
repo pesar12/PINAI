@@ -526,8 +526,7 @@ async def main():
     arg.add_argument(
         "--worker",
         "-W",
-        default=1,
-        help=f"Perform custom input for worker (default : {1})",
+        help=f"Perform custom input for worker (default : cpu core -1 )",
     )
     arg.add_argument("--marin", action="store_true")
     args = arg.parse_args()
@@ -614,6 +613,7 @@ async def main():
         if opt == "5":
             if not args.worker:
                 worker = int(os.cpu_count()-1)
+                print(f"{green}available worker : {worker}")
                 if worker < 1:
                     worker = 1
             else:
