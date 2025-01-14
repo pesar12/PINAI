@@ -4,6 +4,7 @@ import json
 import anyio
 import httpx
 import random
+import ssl
 import asyncio
 import argparse
 import aiofiles
@@ -33,6 +34,14 @@ proxy_file = "proxies.txt"
 data_file = "data.txt"
 config_file = "config.json"
 
+ssl._create_default_https_context = ssl._create_unverified_context
+os.environ['CURL_CA_BUNDLE'] = ""
+
+# 如果还有问题，可以尝试添加这个
+if hasattr(ssl, '_create_unverified_context'):
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+
 
 class Config:
     def __init__(self, auto_checkin, auto_collect, auto_task):
@@ -59,7 +68,13 @@ class PIN_AI:
         if len(self.proxies) > 0:
             proxy = self.get_random_proxy(id, False)
             transport = AsyncProxyTransport.from_url(proxy)
-            self.ses = cfcrawler.AsyncClient(transport=transport, timeout=10000)
+            self.ses = httpx.AsyncClient(
+                transport=transport,
+                timeout=10000,
+                verify=False,
+                http2=False,
+                trust_env=False
+            )
         else:
             self.ses = cfcrawler.AsyncClient(timeout=1000)
 
