@@ -241,6 +241,13 @@ class PIN_AI:
         for task_name, task_id, is_complete, need_claim, can_claim, reward_points in zip(task_name, task_id, is_complete, need_claim, can_claim, reward_points):
             if is_complete:
                 self.log(f"{yellow}already complete {task_name} !")
+                if can_claim:
+                    url = f"https://prod-api.pinai.tech/task/{task_id}/claim"
+                    res = await self.http(url=url, headers=self.headers, data=json.dumps({}))
+                    if res.json().get("status") == "success":
+                        self.log(f"{green} claim {task_name} points {reward_points}!")
+                    else:
+                        self.log(f"{red} failed claim {task_name} points!")
             else:
                 if task_id in [1002, 1004]:
                     complete_url = f"https://prod-api.pinai.tech/task/{task_id}/v2/complete"
@@ -273,7 +280,28 @@ class PIN_AI:
                 if is_complete:
                     self.log(f"{yellow}already complete random task {task_name} !")
                 else:
-                    if task_id == 1013:
+                    if task_name == "Use the agent Horoscope 1 times":
+                        for _ in range(need_num):
+                            self.log(f"{green}task id:{task_id} {task_name} !")
+                            horoscope_url = "https://prod-api.pinai.tech/action/v1/horoscope"
+                            await self.http(url=horoscope_url, headers=self.headers)
+                            await countdown(random.randint(5, 10))
+                        self.log(f"{green}complete random task :{task_name} !")
+                    if task_name == "Use the Agent feature 1 times":
+                        for _ in range(need_num):
+                            self.log(f"{green}task id:{task_id} {task_name} !")
+                            horoscope_url = "https://prod-api.pinai.tech/action/v1/horoscope"
+                            await self.http(url=horoscope_url, headers=self.headers)
+                            await countdown(random.randint(5, 10))
+                        self.log(f"{green}complete random task :{task_name} !")
+                    if task_name == "Use the Agent feature 2 times":
+                        for _ in range(need_num):
+                            self.log(f"{green}task id:{task_id} {task_name} !")
+                            horoscope_url = "https://prod-api.pinai.tech/action/v1/horoscope"
+                            await self.http(url=horoscope_url, headers=self.headers)
+                            await countdown(random.randint(5, 10))
+                        self.log(f"{green}complete random task :{task_name} !")
+                    if task_name == "Use the Agent feature 3 times":
                         for _ in range(need_num):
                             self.log(f"{green}task id:{task_id} {task_name} !")
                             horoscope_url = "https://prod-api.pinai.tech/action/v1/horoscope"
@@ -281,16 +309,39 @@ class PIN_AI:
                             await countdown(random.randint(5, 10))
                         self.log(f"{green}complete random task :{task_name} !")
                     if task_id == 1014:
-                        self.log(f"{green} Use the agent Ask for rides 1 times!")
-                        url = "https://prod-api.pinai.tech/action/steps?action_id=2002&lat=22.3034464&lng=114.1603497&name=Sky+100+Hong+Kong+Observation+Deck&address=International+Commerce+Centre+(ICC),+1+Austin+Road+West,+Tsim+Sha+Tsui"
-                        await self.http(url=url, headers=self.headers)
-                        await countdown(random.randint(5, 10))
+                        if task_name == "Use the agent Shopping 1 times":
+                            self.log(f"{green} Use the agent Shopping 1 times!")
+                            url = "https://prod-api.pinai.tech/action/steps?action_id=2003&name=Phone+chargers+and+cables&category=Phone+chargers+and+cables"
+                            await self.http(url=url, headers=self.headers, data=json.dumps({}))
+                        else:
+                            self.log(f"{green} Use the agent Ask for rides 1 times!")
+                            url = "https://prod-api.pinai.tech/action/steps?action_id=2002&lat=22.3034464&lng=114.1603497&name=Sky+100+Hong+Kong+Observation+Deck&address=International+Commerce+Centre+(ICC),+1+Austin+Road+West,+Tsim+Sha+Tsui"
+                            await self.http(url=url, headers=self.headers)
+                            await countdown(random.randint(5, 10))
                         self.log(f"{green}complete random task :{task_name} !")
                     if task_id == 1011:
                         self.log(f"{red} need to connected two data accounts")
                         return False
+                    if task_id == 1012:
+                        self.log(f"{red} need to connect Facebook data account")
+                        return False
                     if task_id == 1015:
                         self.log(f"{red} need to join a community")
+                        url = "https://prod-api.pinai.tech/community/join"
+                        res = await self.http(url=url, headers=self.headers, data=json.dumps({"tg_group_link":"https://t.me/HiPIN_RU"}))
+                        if res.json().get("role",0) == "member":
+                            self.log(f"{green} success join a community!")
+                            url = "https://prod-api.pinai.tech/community/1/claim"
+                            res = await self.http(url=url, headers=self.headers, data=json.dumps({}))
+                            if res.json().get("status") == "success":
+                                self.log(f"{green} success claim community points!")
+                            else:
+                                self.log(f"{red} failed claim community points!")
+                        else:
+                            self.log(f"{red} failed join a community!")
+                        return False
+                    if task_id == 1016:
+                        self.log(f"{red} need to connect 4 data accounts")
                         return False
 
             res = await self.http(url=random_task_url, headers=self.headers)
@@ -400,6 +451,16 @@ class PIN_AI:
             self.log(f"{green} Start random task...")
             await self.task()
         #返回当前时间戳+4小时后重试
+        res = await self.http(home_url, self.headers)
+        #获取PIN POINTS和DATA POWER
+        pin_points_in_number = res.json().get("pin_points_in_number", 0)
+        data_power = res.json().get("data_power", 0)
+        #更新用户数据
+        await self.db.update({"pin_points_in_number": pin_points_in_number}, Query().id == uid)
+        await self.db.update({"data_power": data_power}, Query().id == uid)
+        #打印PIN POINTS和DATA POWER
+        self.log(f"{green}PIN POINTS    : {white}{pin_points_in_number}")
+        self.log(f"{green}DATA POWER    : {white}{data_power}")
         wait_period = int(datetime.now().timestamp())+3600*4
         return round(wait_period)
         
