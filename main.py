@@ -44,10 +44,11 @@ if hasattr(ssl, '_create_unverified_context'):
 
 
 class Config:
-    def __init__(self, auto_checkin, auto_collect, auto_task):
+    def __init__(self, auto_checkin, auto_collect, auto_task, auto_upgrade ):
         self.auto_checkin = auto_checkin
         self.auto_collect = auto_collect
         self.auto_task = auto_task
+        self.auto_upgrade = auto_upgrade
 
 class PIN_AI:
     def __init__(self, id, query, proxies, config: Config):
@@ -328,12 +329,18 @@ class PIN_AI:
                             self.log(f"{green} Use the agent Shopping 1 times!")
                             url = "https://prod-api.pinai.tech/action/steps?action_id=2003&name=Phone+chargers+and+cables&category=Phone+chargers+and+cables"
                             await self.http(url=url, headers=self.headers, data=json.dumps({}))
-                        else:
-                            self.log(f"{green} Use the agent Ask for rides 1 times!")
-                            url = "https://prod-api.pinai.tech/action/steps?action_id=2002&lat=22.3034464&lng=114.1603497&name=Sky+100+Hong+Kong+Observation+Deck&address=International+Commerce+Centre+(ICC),+1+Austin+Road+West,+Tsim+Sha+Tsui"
+                        if task_name == "Use the agent X Insights 1 times":
+                            self.log(f"{green} Use the agent X Insights 1 times!")
+                            url = "https://prod-api.pinai.tech/action/friends/summary/twitter?user_name=weikaide"
                             await self.http(url=url, headers=self.headers)
                             await countdown(random.randint(5, 10))
-                        self.log(f"{green}complete random task :{task_name} !")
+                            self.log(f"{green}complete random task :{task_name} !")
+                        if task_name == "Use the agent Ask for rides 2 times":
+                            self.log(f"{green} Use the agent Ask for rides 2 times!")
+                            url = "https://prod-api.pinai.tech/action/steps?action_id=2004&name=Uber&category=Uber"
+                            await self.http(url=url, headers=self.headers, data=json.dumps({}))
+                            await countdown(random.randint(5, 10))
+                            self.log(f"{green}complete random task :{task_name} !")
                     if task_id == 1011:
                         self.log(f"{red} need to connected two data accounts")
                         return False
@@ -463,9 +470,30 @@ class PIN_AI:
             self.log(f"{green}all coin collected !")
         #如果自动任务，则执行任务
         if self.cfg.auto_task:
-            self.log(f"{green} Start random task...")
+            self.log(f"{green} Start to complete task...")
             await self.task()
         #返回当前时间戳+4小时后重试
+        if self.cfg.auto_upgrade:
+            self.log(f"{green} Start upgrade...")
+            res = await self.http(home_url, self.headers)
+            pin_points_in_number = res.json().get("pin_points_in_number", 0)
+            cost = res.json().get("cost", 0)
+            if pin_points_in_number > 0 and cost > 0:
+                while pin_points_in_number >= cost :
+                    upgrade_url = "https://prod-api.pinai.tech/model/upgrade"
+                    res = await self.http(url=upgrade_url, headers=self.headers, data=json.dumps({}))
+                    if res.status_code == 200:
+                        level = res.json().get("level", 0)
+                        self.log(f"{green}success upgrade to level {level} !")
+                    else:
+                        self.log(f"{red}failed upgrade !")
+                    res = await self.http(home_url, self.headers)
+                    pin_points_in_number = res.json().get("pin_points_in_number", 0)
+                    cost = res.json().get("cost", 0)
+                    await countdown(random.randint(5, 10))
+                self.log(f"{green} upgrade completed !")
+
+        # 获取最后的数据
         res = await self.http(home_url, self.headers)
         #获取PIN POINTS和DATA POWER
         pin_points_in_number = res.json().get("pin_points_in_number", 0)
@@ -542,6 +570,7 @@ async def main():
                 "auto_checkin": True,
                 "auto_collect": True,
                 "auto_task": True,
+                "auto_upgrade": True,
             }
             await w.write(json.dumps(_config, indent=4))
     while True:
@@ -555,6 +584,7 @@ async def main():
                 auto_checkin=cfg.get("auto_checkin"),
                 auto_collect=cfg.get("auto_collect"),
                 auto_task=cfg.get("auto_task"),
+                auto_upgrade=cfg.get("auto_upgrade"),
             )
         datas, proxies = await get_data(data_file=args.data, proxy_file=args.proxy)
         menu = f"""
@@ -566,8 +596,9 @@ async def main():
     {green}1{white}.{green}) {white}set on/off auto checkin ({(green + "active" if config.auto_checkin else red + "non-active")})
     {green}2{white}.{green}) {white}set on/off auto collect coin({(green + "active" if config.auto_collect else red + "non-active")})
     {green}3{white}.{green}) {white}set on/off auto task({(green + "active" if config.auto_task else red + "non-active")})
-    {green}4{white}.{green}) {white}start bot (sync mode)
-    {green}5{white}.{green}) {white}start bot (multi-thread mode)
+    {green}4{white}.{green}) {white}set on/off auto upgrade({(green + "active" if config.auto_upgrade else red + "non-active")})
+    {green}5{white}.{green}) {white}start bot (sync mode)
+    {green}6{white}.{green}) {white}start bot (multi-thread mode)
         """
         opt = None
         if args.action:
@@ -601,6 +632,14 @@ async def main():
             opt = None
             continue
         if opt == "4":
+            cfg["auto_upgrade"] = False if config.auto_upgrade else True
+            async with aiofiles.open(config_file, "w") as w:
+                await w.write(json.dumps(cfg, indent=4))
+            print(f"{green}success update auto_upgrade config !")
+            input(f"{blue}press enter to continue")
+            opt = None
+            continue
+        if opt == "5":
             while True:
                 datas, proxies = await get_data(args.data, args.proxy)
                 result = []
@@ -610,7 +649,7 @@ async def main():
                     ).start()
                     result.append(res)
                 await countdown(3600*3)
-        if opt == "5":
+        if opt == "6":
             if not args.worker:
                 worker = int(os.cpu_count()-1)
                 print(f"{green}available worker : {worker}")
