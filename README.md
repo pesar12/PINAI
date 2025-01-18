@@ -1,13 +1,12 @@
 ## راهنمای استفاده
 
 1. کلون کردن مخزن:
-   ```bash
+
    git clone https://github.com/pesar12/PINAI.git
    cd PINAI
-```bash
-   ```bash nano data.txt
+   nano data.txt
 pip3 install -r requirement.txt
-```bash
+
    python3 main.py
 ## توجه مهم
 
