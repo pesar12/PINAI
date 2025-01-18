@@ -214,6 +214,9 @@ class PIN_AI:
     async def check_in(self):
         url = "https://prod-api.pinai.tech/task/checkin_data"
         res = await self.http(url=url, headers=self.headers)
+        if res.status_code != 200:
+            self.log(f"{red}failed to get checkin data !")
+            return False
         today_reward = res.json().get('tasks', [{}])[0].get('reward_points', {})
         is_claim = res.json().get('tasks', [{}])[0].get('checkin_detail', {}).get('is_today_checkin')
         if is_claim:
@@ -342,8 +345,12 @@ class PIN_AI:
                             await countdown(random.randint(5, 10))
                             self.log(f"{green}complete random task :{task_name} !")
                     if task_id == 1011:
-                        self.log(f"{red} need to connected two data accounts")
-                        return False
+                        if task_name == "3 data accounts have been connected":
+                            self.log(f"{red} need to connected 3 data accounts")
+                            return False
+                        if task_name == "2 data accounts have been connected":
+                            self.log(f"{red} need to connected 2 data accounts")
+                            return False
                     if task_id == 1012:
                         self.log(f"{red} need to connect Facebook data account")
                         return False
@@ -377,8 +384,11 @@ class PIN_AI:
                 else:
                     self.log(f"{red}failed claim random task points!")
                     return False
-            else:
+            if not res.json().get("can_claim") and (res.json().get("is_today_done") == False):
                 self.log(f"{red} can't claim points, still have incomplete random task!")
+                return False
+            else:
+                self.log(f"{red} can't claim points!")
                 return False
 
     async def start(self):
@@ -414,13 +424,16 @@ class PIN_AI:
                     "pin_points_in_number": 0,
                     "data_power": 0,
                     "last_login": int(datetime.now().timestamp()),
+                    "level": 0,
                 }
             )
             result = await self.db.search(Query().id == uid)
         #获取上次登录时间
         last_login = result[0].get("last_login")
+        #获取用户等级
+        level = result[0].get("level")
         #打印用户信息
-        self.log(f"{green}login as {first_name}{last_name} uid:{uid}")
+        self.log(f"{green}login as {first_name}{last_name} uid:{uid} level:{level}")
         #获取当前时间戳
         timestamp = int(datetime.now().timestamp())
         #更新上次登录时间
@@ -446,33 +459,39 @@ class PIN_AI:
             await self.check_in()
         #获取主页数据
         res = await self.http(home_url, self.headers)
+        if res.status_code != 200:
+            self.log(f"{red}failed to get home data !")
+            return False
         #获取PIN POINTS和DATA POWER
         pin_points_in_number = res.json().get("pin_points_in_number", 0)
         data_power = res.json().get("data_power", 0)
-        #更新用户数据
-        await self.db.update({"pin_points_in_number": pin_points_in_number}, Query().id == uid)
-        await self.db.update({"data_power": data_power}, Query().id == uid)
+        level = res.json().get("current_model", {}).get("current_level", 0)
+
         #打印PIN POINTS和DATA POWER
-        self.log(f"{green}PIN POINTS    : {white}{pin_points_in_number}")
-        self.log(f"{green}DATA POWER    : {white}{data_power}")
+        self.log(f"{green}PIN POINTS     : {white}{pin_points_in_number}")
+        self.log(f"{green}DATA POWER     : {white}{data_power}")
+        self.log(f"{green}LEVEL          : {white}{level}")
         #如果自动收集硬币，则收集硬币
         if self.cfg.auto_collect:
             self.log(f"{green} Collecting coin...")
-            coin_list = [coin.get("type") for coin in res.json().get("coins")]
-            coin_count = [coin.get("count") for coin in res.json().get("coins")]
+            coin_list = [coin.get("type", "") for coin in res.json().get("coins", [])]
+            coin_count = [coin.get("count", 0) for coin in res.json().get("coins", [])]
             while any(coin_count):
                 for coin_type, count in zip(coin_list, coin_count):
                     if count > 0:
                         await self.collect_coin(coin_type=coin_type, coin_count=count)
                         await countdown(random.randint(3, 10))
                 res = await self.http(home_url, self.headers)
-                coin_count = [coin.get("count") for coin in res.json().get("coins")]
+                if res.status_code != 200:
+                    self.log(f"{red}failed to get home data !")
+                    return False
+                coin_count = [coin.get("count", 0) for coin in res.json().get("coins", [])]
             self.log(f"{green}all coin collected !")
         #如果自动任务，则执行任务
         if self.cfg.auto_task:
             self.log(f"{green} Start to complete task...")
             await self.task()
-        #返回当前时间戳+4小时后重试
+        #如果自动升级，则升级
         if self.cfg.auto_upgrade:
             self.log(f"{green} Start upgrade...")
             res = await self.http(home_url, self.headers)
@@ -483,27 +502,35 @@ class PIN_AI:
                     upgrade_url = "https://prod-api.pinai.tech/model/upgrade"
                     res = await self.http(url=upgrade_url, headers=self.headers, data=json.dumps({}))
                     if res.status_code == 200:
-                        level = res.json().get("level", 0)
+                        level = res.json().get("current_model", {}).get("current_level", 0)
                         self.log(f"{green}success upgrade to level {level} !")
                     else:
                         self.log(f"{red}failed upgrade !")
+                        return False
                     res = await self.http(home_url, self.headers)
                     pin_points_in_number = res.json().get("pin_points_in_number", 0)
                     cost = res.json().get("cost", 0)
                     await countdown(random.randint(5, 10))
                 self.log(f"{green} upgrade completed !")
 
-        # 获取最后的数据
+        # 获取最新的数据
         res = await self.http(home_url, self.headers)
+        if res.status_code != 200:
+            self.log(f"{red}failed to get home data !")
+            return False
         #获取PIN POINTS和DATA POWER
         pin_points_in_number = res.json().get("pin_points_in_number", 0)
         data_power = res.json().get("data_power", 0)
+        level = res.json().get("current_model", {}).get("current_level", 0)
         #更新用户数据
         await self.db.update({"pin_points_in_number": pin_points_in_number}, Query().id == uid)
         await self.db.update({"data_power": data_power}, Query().id == uid)
+        await self.db.update({"level": level}, Query().id == uid)
         #打印PIN POINTS和DATA POWER
-        self.log(f"{green}PIN POINTS    : {white}{pin_points_in_number}")
-        self.log(f"{green}DATA POWER    : {white}{data_power}")
+        self.log(f"{green}PIN POINTS     : {white}{pin_points_in_number}")
+        self.log(f"{green}DATA POWER     : {white}{data_power}")
+        self.log(f"{green}LEVEL          : {white}{level}")
+        #返回当前时间戳+4小时后重试 
         wait_period = int(datetime.now().timestamp())+3600*4
         return round(wait_period)
         
@@ -528,11 +555,13 @@ async def countdown(t):
 
 async def main():
     banner = f"""
-        {magenta}┏┓┳┓┏┓  ┏┓    •      {white}PIN_AI {green}Bot
-        {magenta}┗┓┃┃┗┓  ┃┃┏┓┏┓┓┏┓┏╋  {green}Author : {white}weikai
-        {magenta}┗┛┻┛┗┛  ┣┛┛ ┗┛┃┗ ┗┗  {white}Github : {green}https://github.com/weikaide
-        {magenta}              ┛      {green}Note : {white}fuck TG
-    """
+{magenta}██╗    ██╗███████╗██╗██╗  ██╗ █████╗ ██╗██████╗ ███████╗
+{magenta}██║    ██║██╔════╝██║██║ ██╔╝██╔══██╗██║██╔══██╗██╔════╝
+{magenta}██║ █╗ ██║█████╗  ██║█████╔╝ ███████║██║██║  ██║█████╗  
+{magenta}██║███╗██║██╔══╝  ██║██╔═██╗ ██╔══██║██║██║  ██║██╔══╝  
+{magenta}╚███╔███╔╝███████╗██║██║  ██╗██║  ██║██║██████╔╝███████╗
+{magenta} ╚══╝╚══╝ ╚══════╝╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═════╝ ╚══════╝
+"""
     arg = argparse.ArgumentParser()
     arg.add_argument(
         "--data",
