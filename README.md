@@ -4,9 +4,12 @@
    ```bash
    git clone https://github.com/pesar12/PINAI.git
    cd PINAI
-nano data.txt
-pip3 install -r requirement.txt
-python3 main.py
+```bash
+   nano data.txt
+```bash
+   pip3 install -r requirement.txt
+```bash
+   python3 main.py
 ## توجه مهم
 
 این پروژه صرفاً برای **اهداف آموزشی** طراحی شده است و هیچ‌گونه مسئولیتی بابت استفاده نادرست یا غیرقانونی از آن بر عهده نویسنده یا مشارکت‌کنندگان نیست. لطفاً از این ابزار تنها در راستای یادگیری و اهداف قانونی استفاده کنید.
