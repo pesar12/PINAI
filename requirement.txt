@@ -6,5 +6,5 @@ aiofiles
 cfcrawler
 ua-generator
 fake-useragent
-asynctinydb
 colorama
+TinyDB
