@@ -3,7 +3,7 @@
 1. کلون کردن مخزن:
 
    
-1. کلون کردن مخزن:
+
    ```bash
    git clone https://github.com/pesar12/PINAI.git
    cd PINAI 
