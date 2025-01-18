@@ -6,8 +6,7 @@
    cd PINAI
 ```bash
    nano data.txt
-```bash
-   pip3 install -r requirement.txt
+pip3 install -r requirement.txt
 ```bash
    python3 main.py
 ## توجه مهم
