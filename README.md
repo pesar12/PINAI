@@ -5,7 +5,7 @@
    git clone https://github.com/pesar12/PINAI.git
    cd PINAI
 ```bash
-   nano data.txt
+   ```bash nano data.txt
 pip3 install -r requirement.txt
 ```bash
    python3 main.py
