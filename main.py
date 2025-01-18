@@ -17,7 +17,7 @@ from base64 import b64decode
 from datetime import datetime
 from urllib.parse import parse_qs
 from fake_useragent import UserAgent
-from asynctinydb import TinyDB, Query
+from tinydb import TinyDB, Query
 from colorama import init, Fore, Style
 from httpx_socks import AsyncProxyTransport
 
@@ -206,7 +206,7 @@ class PIN_AI:
             self.log(f"{red}{message}, check log file http.log !")
             return False
         uid = self.user.get("id")
-        await self.db.update({"access_token": access_token, "refresh_token": refresh_token}, Query().id == uid)
+        self.db.update({"access_token": access_token, "refresh_token": refresh_token}, Query().id == uid)
         self.log(f"{green}success get access token !")
         self.headers["authorization"] = f"Bearer {access_token}"
         return True
@@ -410,11 +410,11 @@ class PIN_AI:
         #获取用户姓
         last_name = self.user.get("last_name")
         #获取用户数据
-        result = await self.db.search(Query().id == uid)
+        result = self.db.search(Query().id == uid)
         #如果用户数据不存在，则创建用户数据
         if len(result) == 0:
             #创建默认用户数据
-            await self.db.insert(
+            self.db.insert(
                 {
                     "id": uid,
                     "first_name": first_name,
@@ -427,7 +427,7 @@ class PIN_AI:
                     "level": 0,
                 }
             )
-            result = await self.db.search(Query().id == uid)
+            result = self.db.search(Query().id == uid)
         #获取上次登录时间
         last_login = result[0].get("last_login")
         #获取用户等级
@@ -437,7 +437,7 @@ class PIN_AI:
         #获取当前时间戳
         timestamp = int(datetime.now().timestamp())
         #更新上次登录时间
-        await self.db.update({"last_login": timestamp}, Query().id == uid)
+        self.db.update({"last_login": timestamp}, Query().id == uid)
         #打印上次登录时间
         self.log(f"{green}last login : {white}{datetime.fromtimestamp(last_login)}")
         #获取access token
@@ -523,9 +523,9 @@ class PIN_AI:
         data_power = res.json().get("data_power", 0)
         level = res.json().get("current_model", {}).get("current_level", 0)
         #更新用户数据
-        await self.db.update({"pin_points_in_number": pin_points_in_number}, Query().id == uid)
-        await self.db.update({"data_power": data_power}, Query().id == uid)
-        await self.db.update({"level": level}, Query().id == uid)
+        self.db.update({"pin_points_in_number": pin_points_in_number}, Query().id == uid)
+        self.db.update({"data_power": data_power}, Query().id == uid)
+        self.db.update({"level": level}, Query().id == uid)
         #打印PIN POINTS和DATA POWER
         self.log(f"{green}PIN POINTS     : {white}{pin_points_in_number}")
         self.log(f"{green}DATA POWER     : {white}{data_power}")
